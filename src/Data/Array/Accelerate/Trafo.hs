@@ -19,6 +19,8 @@ module Data.Array.Accelerate.Trafo (
   convertAfun, convertAfunWith,
   Trafo,
 
+  spliceAfunWith,
+
   -- ** Sequence computations
   -- convertSeq, convertSeqWith,
 
@@ -75,6 +77,8 @@ import Control.Monad.Trans.Writer (runWriter, Writer, writer)
 import Control.Monad ((>=>))
 import Data.Array.Accelerate.Trafo.Operation.Bounds
 
+import Language.Haskell.TH (CodeQ, bindCode)
+
 inspectCompiler'
   :: forall sched kernel f.
      (Afunction f, Trafo sched kernel)
@@ -125,6 +129,17 @@ convertAfunWith
   -> sched kernel () (Scheduled sched (LoweredAfun (ArraysFunctionR f)))
 convertAfunWith config = fst . convertAfunFullOptions config defaultObjective (const ())
 
+spliceAfunWith
+  :: forall sched kernel f.
+     (Afunction f, Trafo sched kernel)
+  => Config
+  -> f
+  -> CodeQ (sched kernel () (Scheduled sched (LoweredAfun (ArraysFunctionR f))))
+spliceAfunWith _ _ = bindCode (fail "no spliceAFunWith yet") id
+  where
+    _toBeUsed = spliceScheduleFun @sched @kernel
+
+
 convertAfunWithObj
   :: forall sched kernel f.
      (Afunction f, Trafo sched kernel)
@@ -154,8 +169,6 @@ convertAfunFullOptions config ft pprint f = runWriter $
   where
     phase'' :: NFData b => String -> (a -> b) -> (b -> Pretty.Adoc) -> a -> Writer m b
     phase'' name g pp a = let b = phase name g a in writer (b, pprint $ Pretty.vsep [fromString $ map toUpper name, pp b, mempty, mempty])
-
-
 
 -- | Convert a closed scalar expression, incorporating sharing observation and
 --   optimisation.

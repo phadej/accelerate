@@ -43,6 +43,7 @@ import Control.Monad
 import Data.Binary                                      ( decodeFile, encodeFile )
 
 import Data.Array.Accelerate.Interpreter
+import Data.Array.Accelerate.Interpreter.Simple (runN)
 
 import Data.Word
 import Data.Random.Normal
@@ -54,7 +55,7 @@ import System.Random
 import Criterion.Main
 
 main :: IO ()
-main = print . runN @Interpreter $ difficult (use $ fromList (Z:.20) $ [1..])
+main = print . runN $ difficult (use $ fromList (Z:.20) $ [1..])
 
 dotp :: Acc (Vector Int) -> Acc (Vector Int) -> Acc (Scalar Int)
 dotp a b = fold (+) 0 $ zipWith (*) (map (+1) a) (map (`div` 2) b)

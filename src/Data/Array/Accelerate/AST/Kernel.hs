@@ -29,11 +29,15 @@ import Data.Array.Accelerate.Array.Buffer
 import Data.Array.Accelerate.Analysis.Hash.Exp
 import Data.Kind
 
+import Language.Haskell.TH (CodeQ)
+
 class (NFData' kernel, NFData' (KernelMetadata kernel)) => IsKernel kernel where
   type KernelOperation kernel :: Type -> Type
   type KernelMetadata  kernel :: Type -> Type
 
   compileKernel :: Env AccessGroundR env -> Clustered (KernelOperation kernel) args -> Args env args -> kernel env
+
+  thCompileKernel :: Env AccessGroundR env -> Clustered (KernelOperation kernel) args -> Args env args -> CodeQ (kernel env)
 
   kernelMetadata :: KernelFun kernel f -> KernelMetadata kernel f
   default kernelMetadata :: KernelMetadata kernel ~ NoKernelMetadata => KernelFun kernel f -> KernelMetadata kernel f

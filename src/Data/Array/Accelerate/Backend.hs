@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 
 -- |
 -- Module      : Data.Array.Accelerate.Backend
@@ -20,6 +21,8 @@ module Data.Array.Accelerate.Backend (
   run1At, run1WithAt,
   runNAt, runNWithAt,
   inspectCompiler,
+
+  runQWithAt,
 
   -- Type classes that a backend should implement:
   Lowering.LowerAcc(..),
@@ -67,6 +70,7 @@ import Data.Type.Equality
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Array.Accelerate.AST.Operation as Operation
 
+import Language.Haskell.TH (CodeQ)
 
 class
   ( Trafo (Schedule backend) (Kernel backend)
@@ -125,8 +129,23 @@ runNWithAt
   -> AfunctionR f
 runNWithAt config f = program `seq` sugarFunction (afunctionRepr @f) $ executeAfun (afunctionGroundR @f) program
   where
+    schedule :: Schedule backend (Kernel backend) () (Scheduled (Schedule backend) (LoweredAfun (ArraysFunctionR f)))
     schedule = convertAfunWith @(Schedule backend) @(Kernel backend) config f
     program = linkAfunSchedule schedule
+
+runQWithAt
+  :: forall backend f.
+     (Afunction f, Backend backend)
+  => Config
+  -> f
+  -> CodeQ (AfunctionR f)
+runQWithAt config f =
+    [|| let program = linkAfunSchedule $$schedule
+        in program `seq` sugarFunction (afunctionRepr @f) $ executeAfun (afunctionGroundR @f) program
+     ||]
+  where
+    schedule :: CodeQ (Schedule backend (Kernel backend) () (Scheduled (Schedule backend) (LoweredAfun (ArraysFunctionR f))))
+    schedule = spliceAfunWith @(Schedule backend) @(Kernel backend) config f
 
 {- runNWithObj
   :: forall backend f.

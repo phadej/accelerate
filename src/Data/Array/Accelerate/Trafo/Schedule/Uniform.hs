@@ -17,7 +17,7 @@
 module Data.Array.Accelerate.Trafo.Schedule.Uniform (
   -- Exports the instance IsSchedule UniformScheduleFun
 
-  compileKernel', CompiledKernel(..), rnfSArg, rnfSArgs,
+  thCompileKernel', compileKernel', CompiledKernel(..), rnfSArg, rnfSArgs,
 ) where
 
 import Data.Array.Accelerate.Analysis.Match

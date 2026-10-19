@@ -23,6 +23,7 @@ module Data.Array.Accelerate.Trafo.Schedule.Partial (
   UnitTuple, UpdateTuple(..), toPartialReturn,
 
   compileKernel', CompiledKernel(..),
+  thCompileKernel',
 ) where
 
 import Data.Array.Accelerate.Analysis.Match
@@ -50,6 +51,9 @@ import Prelude hiding (id, (.), read)
 import Control.Category
 
 import Data.Functor.Identity
+
+import Language.Haskell.TH (Q, CodeQ)
+
 -- Constructs a partial schedule. It is partial as many details still need
 -- to be filled in for the actual schedule. This schedule does however
 -- decide whether the binding and body of a let-binding should be executed
@@ -347,6 +351,15 @@ data CompiledKernel kenv fenv kernel where
   CompiledKernel :: OpenKernelFun kernel kenv f
                  -> SArgs fenv f
                  -> CompiledKernel kenv fenv kernel
+
+thCompileKernel'
+  :: forall fenv kernel args.
+     IsKernel kernel
+  => Clustered (KernelOperation kernel) args
+  -> Args fenv args
+  -> Q (CodeQ (CompiledKernel () fenv kernel))
+thCompileKernel' = undefined ("bla bla" :: String)
+    (thCompileKernel @kernel)
 
 compileKernel'
   :: forall fenv kernel args.

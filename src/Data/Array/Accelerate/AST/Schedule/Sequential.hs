@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# OPTIONS_HADDOCK hide #-}
 -- |
 -- Module      : Data.Array.Accelerate.AST.Schedule.Sequential
@@ -32,13 +33,16 @@ import qualified Data.Array.Accelerate.AST.Partitioned as Partition
 import Data.Array.Accelerate.AST.Kernel
 import Data.Array.Accelerate.AST.Schedule
 import Data.Array.Accelerate.AST.Schedule.Uniform ( SArg(..), SArgs )
-import Data.Array.Accelerate.Trafo.Schedule.Uniform ( compileKernel', CompiledKernel(..), rnfSArgs )
+import Data.Array.Accelerate.Trafo.Schedule.Uniform ( thCompileKernel', compileKernel', CompiledKernel(..), rnfSArgs )
 import Data.Array.Accelerate.AST.Execute
 import Control.Concurrent.MVar
 import Data.Typeable                                                ( (:~:)(..) )
 import Data.Kind (Type)
 import Data.Text (Text)
 import Control.DeepSeq (NFData (rnf))
+
+import Language.Haskell.TH (CodeQ)
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- Generic schedule for a uniform memory space and uniform scheduling,
 -- without task parallelism.
@@ -146,6 +150,8 @@ instance IsSchedule SequentialSchedule where
 
   convertScheduleFun = convertScheduleFun'
 
+  spliceScheduleFun = spliceScheduleFun'
+
   callScheduledFun (GFunctionRbody repr) f
     | Refl <- reprIsBody @SequentialSchedule repr = do
       destination <- newEmptyMVar
@@ -161,6 +167,35 @@ convertScheduleFun'
 convertScheduleFun' (Operation.Alam lhs f) = SequentialLam lhs $ convertScheduleFun' f
 convertScheduleFun' (Operation.Abody body)
   | Refl <- reprIsBody @SequentialSchedule $ groundsR body = SequentialBody $ convertSchedule' body
+
+-- TODO: We probably don't want to reimplmenet this for the runQ codepath.
+-- To avoid duplication we could try to parametrise convertSchedule
+-- by a choice between compileKernel' and thCompileKernel'
+-- and make possible to TH.lift schedules
+--
+-- liftSchedule :: sched (CodeQ kernel) env t -> CodeQ (sched kernel env t)
+--
+-- Note: the sched (CodeQ kernel) is oversimplification, as schedules
+-- are not truly parametric in the `kernel` argument; we'd need more some tag type
+-- to convert `KernelMetadata (CodeQ kernel)` to `CodeQ (KernelMetadata kernel)`
+-- and so on. The type family magic may get somewhat worse.
+--
+spliceScheduleFun'
+  :: forall kernel env t. IsKernel kernel
+  => Partition.PartitionedAfun (KernelOperation kernel) env t -> CodeQ (SequentialSchedule kernel env (Scheduled SequentialSchedule t))
+spliceScheduleFun' (Operation.Alam lhs f) = [|| SequentialLam $$(liftGLEftHandSide lhs) $$(spliceScheduleFun' f) ||]
+  where
+    liftGLEftHandSide :: GLeftHandSide a env env' -> CodeQ (GLeftHandSide a env env')
+    liftGLEftHandSide = error "liftGLEftHandSide"
+spliceScheduleFun' (Operation.Abody body)
+    | Refl <- reprIsBody @SequentialSchedule $ groundsR body
+
+    -- a part of future spliceSchedule
+    = case body of
+      Operation.Exec op args ->
+          TH.bindCode (thCompileKernel' @env @kernel op args) $ \ _unused ->
+          [|| error "process result of thCompileKernel'" ||]
+      _ -> error "TODO: spliceScheduleFun'"
 
 convertSchedule' :: forall kernel env t. IsKernel kernel => Partition.PartitionedAcc (KernelOperation kernel) env t -> SeqSchedule kernel env t
 convertSchedule' (Operation.Exec op args)

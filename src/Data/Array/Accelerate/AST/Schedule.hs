@@ -37,6 +37,8 @@ import Data.Ord
 import Control.Monad
 import System.IO.Unsafe
 
+import Language.Haskell.TH (CodeQ)
+
 class IsSchedule sched where
   -- 'a' is a ground type (ie, can be represented using GroundR)
   type ScheduleInput  sched a
@@ -47,6 +49,11 @@ class IsSchedule sched where
   convertScheduleFun
     :: IsKernel kernel
     => PartitionedAfun (KernelOperation kernel) () t -> sched kernel () (Scheduled sched t)
+
+  spliceScheduleFun
+    :: IsKernel kernel
+    => PartitionedAfun (KernelOperation kernel) () t
+    -> CodeQ (sched kernel () (Scheduled sched t))
 
   callScheduledFun :: GFunctionR t -> IOFun (Scheduled sched t) -> FullIOFun t
 

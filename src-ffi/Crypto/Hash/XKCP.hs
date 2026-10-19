@@ -38,10 +38,16 @@ import GHC.Base
 import GHC.Word
 import GHC.Show
 
+import Language.Haskell.TH.Syntax (Lift (..))
+
 
 -- | SHA3 (256 bits) cryptographic hash digest
 --
 data SHA3_256 = SHA3_256 ByteArray#
+
+instance Lift SHA3_256 where
+    lift = error "reuse ByteArray or ShortByteString instance for now"
+    liftTyped = error "TODO"
 
 instance Show SHA3_256 where
   show (SHA3_256 ba#) =
